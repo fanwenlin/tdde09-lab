@@ -1,0 +1,12 @@
+.jupyter_ystore.db
+jupyter_ystore.db
+.ipynb_checkpoints/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+.env/
+ENV/
+env.bak/
+venv.bak/
