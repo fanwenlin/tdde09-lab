@@ -1,0 +1,117 @@
+from dataclasses import dataclass
+
+import torch
+import torch.nn as nn
+
+
+@dataclass
+class Config:
+    n_vocab = 50257
+    n_ctx = 1024
+    n_embd = 768
+    n_head = 12
+    n_layer = 12
+
+
+def gelu(x):
+    return 0.5 * x * (1 + torch.tanh((2 / torch.pi) ** 0.5 * (x + 0.044715 * x**3)))
+
+
+class MLP(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.c_fc = nn.Linear(config.n_embd, config.n_embd * 4)
+        self.c_proj = nn.Linear(config.n_embd * 4, config.n_embd)
+
+    def forward(self, x):
+        batch_size, seq_len, n_embd = x.shape
+        x = self.c_fc(x)
+        x = gelu(x)
+        x = self.c_proj(x)
+        return x
+
+
+def make_causal_mask(n):
+    return torch.triu(torch.full((n, n), float("-inf")), diagonal=1)
+
+
+class Attention(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        assert config.n_embd % config.n_head == 0
+        self.n_head = config.n_head
+        self.c_attn = nn.Linear(config.n_embd, config.n_embd * 3)
+        self.c_proj = nn.Linear(config.n_embd, config.n_embd)
+        self.register_buffer("mask", make_causal_mask(config.n_ctx), persistent=False)
+
+    def forward(self, x):
+        batch_size, seq_len, n_embd = x.shape
+        head_embd = n_embd // self.n_head
+        q, k, v = self.c_attn(x).chunk(3, dim=-1)
+        q = q.view(batch_size, seq_len, self.n_head, head_embd)
+        k = k.view(batch_size, seq_len, self.n_head, head_embd)
+        v = v.view(batch_size, seq_len, self.n_head, head_embd)
+        q = q.transpose(-2, -3)
+        k = k.transpose(-2, -3)
+        v = v.transpose(-2, -3)
+        x = q @ k.transpose(-1, -2)
+        x = x / head_embd**0.5
+        x = x + self.mask[:seq_len, :seq_len]
+        x = torch.softmax(x, dim=-1)
+        x = x @ v
+        x = x.transpose(-2, -3).contiguous()
+        x = x.view(batch_size, seq_len, n_embd)
+        x = self.c_proj(x)
+        return x
+
+
+class LayerNorm(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.g = nn.Parameter(torch.ones(config.n_embd))
+        self.b = nn.Parameter(torch.zeros(config.n_embd))
+
+    def forward(self, x):
+        mean = x.mean(dim=-1, keepdim=True)
+        variance = x.var(unbiased=False, dim=-1, keepdim=True)
+        return self.g * (x - mean) / torch.sqrt(variance + 1e-05) + self.b
+
+
+class Block(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.ln_1 = LayerNorm(config)
+        self.attn = Attention(config)
+        self.ln_2 = LayerNorm(config)
+        self.mlp = MLP(config)
+
+    def forward(self, x):
+        x = x + self.attn(self.ln_1(x))
+        x = x + self.mlp(self.ln_2(x))
+        return x
+
+
+def make_positions(n):
+    return torch.arange(n, dtype=torch.long)
+
+
+class Model(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.wte = nn.Embedding(config.n_vocab, config.n_embd)
+        self.wpe = nn.Embedding(config.n_ctx, config.n_embd)
+        self.h = nn.Sequential(*(Block(config) for _ in range(config.n_layer)))
+        self.ln_f = LayerNorm(config)
+        self.lm_head = nn.Linear(config.n_embd, config.n_vocab, bias=False)
+        self.register_buffer("pos", make_positions(config.n_ctx), persistent=False)
+
+    def forward(self, x):
+        batch_size, seq_len = x.shape
+        wte = self.wte(x)
+        wpe = self.wpe(self.pos[:seq_len])
+        x = wte + wpe
+        x = self.h(x)
+        x = self.ln_f(x)
+        x = self.lm_head(x)
+        return x
