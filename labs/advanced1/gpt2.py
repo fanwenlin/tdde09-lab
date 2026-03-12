@@ -14,8 +14,10 @@ class Config:
     n_type_vocab_size = 2
 
 
+# def gelu(x):
+#     return 0.5 * x * (1 + torch.tanh((2 / torch.pi) ** 0.5 * (x + 0.044715 * x**3)))
 def gelu(x):
-    return 0.5 * x * (1 + torch.tanh((2 / torch.pi) ** 0.5 * (x + 0.044715 * x**3)))
+    return x * 0.5 * (1.0 + torch.erf(x / (2.0 ** 0.5)))
 
 
 class MLP(nn.Module):
@@ -109,20 +111,22 @@ class Model(nn.Module):
         self.cls_pooler_activation = nn.Tanh()
         self.register_buffer("pos", make_positions(config.n_ctx), persistent=False)
 
-    def forward(self, x, token_types=None, padding_mask=None):
+    def forward(self, x=None, token_type_ids=None, attention_mask=None, input_ids=None):
+        if x is None:
+            x = input_ids
         batch_size, seq_len = x.shape
         wte = self.wte(x)
         wpe = self.wpe(self.pos[:seq_len])
 
-        if padding_mask is None:
-            padding_mask = torch.ones_like(x)
-        if token_types is None:
-            token_types = torch.zeros_like(x)
+        if attention_mask is None:
+            attention_mask = torch.ones_like(x)
+        if token_type_ids is None:
+            token_type_ids = torch.zeros_like(x)
 
-        type_token_wte = self.type_token_wpe(token_types)
+        type_token_wte = self.type_token_wpe(token_type_ids)
         x = wte + wpe + type_token_wte
-        for h in self.h:
-            x = h(x, attention_mask=padding_mask)
         x = self.ln_f(x)
+        for h in self.h:
+            x = h(x, attention_mask=attention_mask)
         pooled = self.cls_pooler_activation(self.cls_pooler(x[:, 0]))
         return (x, pooled)

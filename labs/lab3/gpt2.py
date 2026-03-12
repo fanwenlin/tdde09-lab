@@ -60,10 +60,11 @@ class Block(nn.Module):
         self.attn = Attention(config)
         self.ln_2 = nn.LayerNorm(config.n_embd)
         self.mlp = MLP(config)
+        self.activation_scale = 1 / math.sqrt(2 * config.n_layer)
 
     def forward(self, x):
-        x = x + self.attn(self.ln_1(x))
-        x = x + self.mlp(self.ln_2(x))
+        x = x * self.activation_scale + self.attn(self.ln_1(x))
+        x = x * self.activation_scale + self.mlp(self.ln_2(x))
         return x
 
 
