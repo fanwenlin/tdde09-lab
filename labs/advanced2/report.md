@@ -6,11 +6,11 @@ Considering GPT model's causal attention, only rightmost token can aggregate the
 
 ## Results
 
-### Parameter Counts
+### Parameter Counts and Accuracy
 
 | Model | Trainable Parameters | Accuracy |
 |-------|---------------------|------------------|
-| DistilBERT (full) | 66,955,010 | 91.4% |
-| DistilBERT (LoRA) | 702722 | 88.6% |
-| GPT-2 (full) | TODO | TODO |
-| GPT-2 (LoRA) | 663552 | 91% |
+| DistilBERT (full) | 66,955,010(66m) | 91.4% |
+| DistilBERT (LoRA) | 702,722(702k) | 88.6% |
+| GPT-2 (full) | 124,441,346(124m) | 90.6% |
+| GPT-2 (LoRA) | 663552(600k) | 90.4% |
