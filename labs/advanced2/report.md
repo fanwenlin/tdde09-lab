@@ -14,3 +14,10 @@ Considering GPT model's causal attention, only rightmost token can aggregate the
 | DistilBERT (LoRA) | 702,722(702k) | 88.6% |
 | GPT-2 (full) | 124,441,346(124m) | 90.6% |
 | GPT-2 (LoRA) | 663552(600k) | 90.4% |
+
+
+## Statement of AI-tool usage
+
+I used `codex-cli` to help me copy related useful codes from previous labs which are explicitly mentioned in README. Also, I used `codex-cli` to generate a initial notebook with step-by-step instructions (the same information in README).
+
+Additionally, I consulted ChatGPT about implementation ideas of classification head for GPT models.

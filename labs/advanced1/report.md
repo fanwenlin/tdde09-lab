@@ -25,3 +25,6 @@ POOL equal: False
 POOL close: True
 POOL max diff: tensor(1.5199e-06)
 ```
+
+## Statement of AI-tool usage
+I used ChatGPT to get knowledge about differences between GPT-2 and BERT. Also, I've got some instructions about how to validate and locate issues in results (especially changing the approximated version of GELU into accurate one).
